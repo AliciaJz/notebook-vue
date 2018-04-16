@@ -1,15 +1,23 @@
 <template>
-  <div id="app">
-    <!-- <img src="./assets/logo.png"> -->
-    <!-- <router-view/> -->
-    <Notebook @change-page="changePage" @new-page="newPage" :pages="pages" :activePage="index" />
-    <Page @save-page="savePage" @delete-page="deletePage" :page="pages[index]" />
-  </div>
-</template>
+      <div id="app">
+          <Notebook @change-page="changePage" @new-page="newPage" :pages="pages" :activePage="index" />
+          <Page @save-page="savePage" @delete-page="deletePage" :page="pages[index]" />
+      </div>
+    </template>
 
-<script>
-import Notebook from './components/Notebook'
-import Page from './components/Page'
+    <script>
+    import Notebook from './components/Notebook'
+    import Page from './components/Page'
+    import Firebase from 'firebase'
+
+var database = Firebase.initializeApp({
+    apiKey: "AIzaSyDD9-xt3feqYOuj2luOKr4hbXC0udfDKiQ",
+    authDomain: "notebook-vue-prueba.firebaseapp.com",
+    databaseURL: "https://notebook-vue-prueba.firebaseio.com",
+    projectId: "notebook-vue-prueba",
+    storageBucket: "notebook-vue-prueba.appspot.com",
+    messagingSenderId: "263285816271"
+  }).database().ref();
 
 export default {
       name: 'app',
@@ -21,6 +29,17 @@ export default {
         pages: [],
         index: 0
       }),
+      mounted() {
+        database.once('value', (pages) => {
+          pages.forEach((page) => {
+            this.pages.push({
+              ref: page.ref,
+              title: page.child('title').val(),
+              content: page.child('content').val()
+            })
+          })
+        })
+      },
       methods: {
         newPage () {
           this.pages.push({
@@ -33,17 +52,33 @@ export default {
           this.index = index
         },
         savePage () {
-          // nothing as of yet
+          var page = this.pages[this.index]
+          if (page.ref) {
+            this.updateExistingPage(page)
+          } else {
+            this.insertNewPage(page)
+          }
+        },
+        updateExistingPage (page) {
+          page.ref.set({
+            title: page.title,
+            content: page.content
+          })
+        },
+        insertNewPage (page) {
+          page.ref = database.push(page)
         },
         deletePage () {
+          var ref = this.pages[this.index].ref
+          ref && ref.remove()
           this.pages.splice(this.index, 1)
           this.index = Math.max(this.index - 1, 0)
         }
       }
     }
-</script>
+    </script>
 
-<style>
+    <style>
     html, body, #app {
         height: 100%;
     }
